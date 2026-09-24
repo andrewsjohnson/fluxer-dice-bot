@@ -4,6 +4,7 @@ export type LogEvent =
   | 'starting' | 'connected' | 'ready' | 'gateway_resumed' | 'gateway_disconnected'
   | 'gateway_error' | 'gateway_terminal_close' | 'command_failed' | 'reply_failed'
   | 'shutting_down' | 'shutdown_complete' | 'shutdown_failed' | 'shutdown_timeout'
+  | 'guided_update_failed' | 'guided_reaction_failed' | 'welcome_failed'
   | 'startup_failed' | 'uncaught_exception' | 'unhandled_rejection';
 
 type LogFields = { command?: 'roll' | 'advantage' | 'disadvantage' | 'help'; closeCode?: number };

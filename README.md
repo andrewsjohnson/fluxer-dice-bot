@@ -1,6 +1,6 @@
 # Fluxer D&D Dice Bot
 
-A small, stateless dice roller for Fluxer, built with TypeScript and `@fluxerjs/core`. It runs as a persistent Node.js process on Railway. No database or incoming HTTP endpoint is needed.
+A small dice roller for Fluxer, built with TypeScript and `@fluxerjs/core`. It runs as a persistent Node.js process on Railway. No database or incoming HTTP endpoint is needed. Guided rolls use short-lived in-memory sessions.
 
 ```text
 !r d20+7 attack
@@ -25,6 +25,7 @@ Example response:
 
 | Command | Behavior |
 | --- | --- |
+| `!roll` or `!r` alone | Start a guided roll with reactions and replies |
 | `!r d20` or `!roll d20` | Roll one die; omitted count defaults to 1 |
 | `!r 8d6 fireball damage` | Roll multiple dice with an optional label |
 | `!r d20+7` / `!r d20-2` | Apply one signed integer modifier |
@@ -48,6 +49,22 @@ V1 accepts one dice group and one modifier. `2d6+1d8`, `d20+2+3`, decimals, mult
 - Limits: **1–100 dice**, **2–10,000 sides**, **1–count kept dice**, **±100,000 modifier**, **200 characters per command**, **100 characters per label**. Length limits count JavaScript UTF-16 units, so some emoji count as two.
 - Random rolls use Node's `crypto.randomInt(1, sides + 1)`. This provides uniform random integers, not an independently verifiable roll record.
 
+## Guided rolls and community welcomes
+
+Send `!roll` or `!r` without arguments to build a roll interactively. The bot asks for die size, count, normal/advantage/disadvantage/keep rules, keep count when needed, and a modifier. Confirm with 🎲 or reply `roll` to generate the result. It shows the equivalent `!r` command afterward. Guided rolls do not ask for a label; use a complete command when you want one.
+
+- React to a labeled choice, or use **Reply** on the bot's prompt and type an answer. Ordinary conversation is ignored. Text replies work even if reaction permission is missing.
+- Only the user who started a session can answer it. One session per user per channel; other users can build independent rolls.
+- The bot updates one prompt message. `back` and `cancel` work as replies; corresponding reactions are available too. If a reaction you already selected remains, toggle it off and on to select it again.
+- Advantage/disadvantage are offered for d20s and automatically use two dice, keeping one. Keep-highest/lowest ask for a valid retained count.
+- Nothing is rolled until confirmation. Fast repeated inputs during a prompt update are ignored; wait for the next question before answering.
+- Sessions expire after **two minutes of inactivity**, have a global cap of **100**, and disappear on restart. Starting another guided roll in the same channel replaces your previous one. Deleting the prompt also discards its session.
+- Complete commands like `!r d20+7` still roll immediately, including when used as a reply to the prompt.
+
+When invited to a new community while running, the bot posts a brief welcome in its system text channel if it has permission, otherwise the first accessible text channel in channel order. If none is writable, it stays silent. It never mentions users, sends DMs, or announces existing communities during startup/reconnect. An existing community will not receive a retrospective welcome when you deploy this update; use `!help` to see the instructions.
+
+For clickable choices, grant the bot **Add Reactions**, alongside **View Channel**, **Send Messages**, and **Read Message History**. These permissions combine to `68672` in an OAuth bot-invite URL. For a bot already installed, update its role/channel permissions in community settings. **Manage Messages** and **Administrator** are not needed: the bot only removes its own reactions, never other users' messages or reactions.
+
 ## Local setup
 
 Use **Node.js 24 LTS** (the SDK minimum is 22.13) and **pnpm 10.32.1**, pinned in `package.json`.
@@ -60,7 +77,7 @@ pnpm install --frozen-lockfile
 cp .env.example .env
 ```
 
-Create a Fluxer bot application and token using Fluxer's developer settings, then set `FLUXER_BOT_TOKEN` in your local `.env`. Invite/authorize the bot in your Fluxer community with permission to view the intended channel, send messages and reply to/read message history. Do not grant administrator permissions just to roll dice. The SDK does not require gateway intents.
+Create a Fluxer bot application and token using Fluxer's developer settings, then set `FLUXER_BOT_TOKEN` in your local `.env`. Invite/authorize the bot in your Fluxer community with permission to view the intended channel, send messages, read message history, and add reactions. Do not grant administrator permissions just to roll dice. The SDK does not require gateway intents.
 
 ```sh
 pnpm dev
@@ -140,13 +157,15 @@ Tests cover numeric bounds, case/whitespace, malformed expressions, deterministi
 | `src/dice/evaluator.ts` | Secure rolls, deterministic keep behavior, totals and naturals |
 | `src/dice/formatter.ts` | All user-facing roll, error and help formatting |
 | `src/dice/types.ts`, `limits.ts`, `errors.ts` | Shared engine types, bounds and categorized errors |
-| `tests/` | Engine, command and runtime tests |
+| `src/guided/` | Guided roll state transitions and bounded in-memory sessions |
+| `src/fluxer/welcome.ts` | New-community welcome channel selection |
+| `tests/` | Engine, command, guided flow, welcome and runtime tests |
 
 Parsing never rolls dice. Evaluation never formats a reply. The engine has no Fluxer dependency. New syntax should extend the intermediate representation and tests before changing command behavior.
 
 ## Operations and privacy
 
-The bot has no database, analytics, files of rolls, saved user profiles, channel history or campaign state. SDK message caching is disabled. Routing metadata and active gateway session state exist only in process memory; the bot's replies remain in Fluxer.
+The bot has no database, analytics, files of rolls, saved user profiles, channel history or campaign state. Guided sessions temporarily retain the initiating user/channel IDs, bot prompt, and roll selections until completion, cancellation, expiry, deletion, or restart. Incoming answers are not retained as conversation history. SDK message caching is disabled. Routing metadata and active gateway session state exist only in process memory; the bot's replies remain in Fluxer.
 
 Logs use fixed event names such as `command_failed command=roll` and never include message text, labels, user/channel IDs, tokens, or raw SDK exceptions. `debug` currently exposes the same safe operational events as `info`; it does not enable raw gateway logging. A failed reply is logged without attempting another reply. No automatic per-user cooldown is included in V1.
 

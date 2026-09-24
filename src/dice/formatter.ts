@@ -83,6 +83,7 @@ export function formatUnexpectedError(): string {
 export function formatHelp(): string {
   return [
     '🎲 **Dice Roller**',
+    'Guided: `!roll` or `!r` alone starts a roll builder with reactions and replies.',
     'Basic: `!r d20` · `!r 2d6+4` · `!r d20-2`',
     'Keep highest / lowest: `!r 4d6kh3` · `!r 2d20kl1+5`',
     'Advantage: `!adv +7 perception`',
