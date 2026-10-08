@@ -18,7 +18,7 @@
     "check": "pnpm typecheck && pnpm test && pnpm build"
   },
   "dependencies": {
-    "@fluxerjs/core": "3.1.0"
+    "@fluxerjs/core": "3.2.0"
   },
   "devDependencies": {
     "@types/node": "^22.20.4",
